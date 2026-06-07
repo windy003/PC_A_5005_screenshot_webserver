@@ -129,6 +129,8 @@ open class CountWidgetProvider : AppWidgetProvider() {
                         Intent.FLAG_ACTIVITY_CLEAR_TOP or
                         Intent.FLAG_ACTIVITY_SINGLE_TOP
                 putExtra(MainActivity.EXTRA_OPEN_SLOT, slot)
+                // 带上被点击的小部件 id，MainActivity 打开后会立即对它再拉一次 count_api
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
             }
             val pi = PendingIntent.getActivity(
                 context, id, openIntent,

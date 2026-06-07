@@ -97,6 +97,14 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="连接并浏览图片"
+                android:layout_marginBottom="8dp" />
+
+            <!-- 小部件设置入口：按当前标签(small/large)配置对应的桌面小部件 -->
+            <Button
+                android:id="@+id/widgetSettingsButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="小部件设置"
                 android:layout_marginBottom="16dp" />
 
             <ProgressBar

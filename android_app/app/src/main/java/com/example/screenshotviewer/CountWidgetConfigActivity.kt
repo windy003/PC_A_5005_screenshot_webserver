@@ -55,18 +55,22 @@ class CountWidgetConfigActivity : AppCompatActivity() {
             )
         )
         pathInput.setText(
-            prefs.getString(CountWidgetProvider.keyPath(appWidgetId), "$site/browse/releasing")
+            prefs.getString(CountWidgetProvider.keyPath(appWidgetId), site)
         )
 
         saveButton.setOnClickListener {
             val name = nameInput.text.toString().trim()
-            val url = urlInput.text.toString().trim()
-            val path = pathInput.text.toString().trim()
+            val rawUrl = urlInput.text.toString().trim()
 
-            if (url.isEmpty()) {
+            if (rawUrl.isEmpty()) {
                 Toast.makeText(this, "请填写服务器地址", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
+
+            // 服务器字段只保留 IP:端口；路径字段去掉首尾斜杠与多余的 count_api 后缀。
+            // 最终请求地址 = {url}/{path}/count_api （拼接在 CountWidgetProvider 中完成）
+            val url = originOf(rawUrl)
+            val path = normalizePath(pathInput.text.toString())
 
             prefs.edit()
                 .putString(CountWidgetProvider.keyName(appWidgetId), name)
@@ -84,6 +88,14 @@ class CountWidgetConfigActivity : AppCompatActivity() {
             )
             finish()
         }
+    }
+
+    /** 规整路径部分：去掉首尾斜杠，并移除用户可能多填的 count_api 后缀。
+     *  例如 "/large/" -> "large"；"large/count_api" -> "large"；"count_api" -> "" */
+    private fun normalizePath(raw: String): String {
+        var p = raw.trim().trim('/')
+        p = p.removeSuffix("/count_api").removeSuffix("count_api").trim('/')
+        return p
     }
 
     /** 从完整地址中提取出 协议+主机+端口，例如

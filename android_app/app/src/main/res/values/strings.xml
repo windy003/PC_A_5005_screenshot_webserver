@@ -13,7 +13,7 @@
     <!-- 小部件配置界面 -->
     <string name="cfg_title">小部件设置</string>
     <string name="cfg_name_hint">自定义名称</string>
-    <string name="cfg_url_hint">服务器地址（如 http://192.168.1.100:5005）</string>
-    <string name="cfg_path_hint">统计路径（如 small/browse/releasing）</string>
+    <string name="cfg_url_hint">服务器 IP 和端口（如 http://192.168.2.56:5005）</string>
+    <string name="cfg_path_hint">其他部分（如 large，自动拼成 /large/count_api）</string>
     <string name="cfg_save">保存</string>
 </resources>

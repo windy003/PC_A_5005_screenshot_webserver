@@ -1,6 +1,8 @@
 package com.example.screenshotviewer
 
 import android.Manifest
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
@@ -46,6 +48,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var rememberPasswordCheckbox: CheckBox
     private lateinit var autoLoginCheckbox: CheckBox
     private lateinit var connectButton: Button
+    private lateinit var widgetSettingsButton: Button
     private lateinit var sortButton: Button
     private lateinit var progressBar: ProgressBar
     private lateinit var imagesRecyclerView: RecyclerView
@@ -94,6 +97,9 @@ class MainActivity : AppCompatActivity() {
         } else if (autoLoginCheckbox.isChecked) {
             autoLogin()
         }
+
+        // 点击小部件进入：立即对该小部件再拉一次 count_api，刷新显示的数量
+        refreshWidgetFromIntent(intent)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -103,6 +109,19 @@ class MainActivity : AppCompatActivity() {
         val slot = intent.getIntExtra(EXTRA_OPEN_SLOT, -1)
         if (slot in 0..1) {
             configTabLayout.getTabAt(slot)?.select()
+        }
+        // 同样立即刷新被点击的小部件数量
+        refreshWidgetFromIntent(intent)
+    }
+
+    /** 若 Intent 来自小部件点击（带有有效的 widget id），立即触发一次后台刷新。 */
+    private fun refreshWidgetFromIntent(intent: Intent) {
+        val widgetId = intent.getIntExtra(
+            AppWidgetManager.EXTRA_APPWIDGET_ID,
+            AppWidgetManager.INVALID_APPWIDGET_ID
+        )
+        if (widgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+            CountWidgetProvider.requestRefresh(this, widgetId)
         }
     }
 
@@ -114,6 +133,7 @@ class MainActivity : AppCompatActivity() {
         rememberPasswordCheckbox = findViewById(R.id.rememberPasswordCheckbox)
         autoLoginCheckbox = findViewById(R.id.autoLoginCheckbox)
         connectButton = findViewById(R.id.connectButton)
+        widgetSettingsButton = findViewById(R.id.widgetSettingsButton)
         sortButton = findViewById(R.id.sortButton)
         progressBar = findViewById(R.id.progressBar)
         imagesRecyclerView = findViewById(R.id.imagesRecyclerView)
@@ -289,6 +309,39 @@ class MainActivity : AppCompatActivity() {
             applySort()
             sortButton.text = if (sortDescending) "排序：从新到旧" else "排序：从旧到新"
         }
+
+        widgetSettingsButton.setOnClickListener {
+            openWidgetConfig(currentSlot)
+        }
+    }
+
+    /**
+     * 打开当前标签页对应的桌面小部件配置界面：
+     *   slot 0 -> small 小部件，slot 1 -> large 小部件。
+     * 每种类型最多一个实例；若桌面尚未添加该小部件，则提示用户先去添加。
+     */
+    private fun openWidgetConfig(slot: Int) {
+        val providerClass = if (slot == 1)
+            LargeCountWidgetProvider::class.java
+        else
+            SmallCountWidgetProvider::class.java
+
+        val mgr = AppWidgetManager.getInstance(this)
+        val ids = mgr.getAppWidgetIds(ComponentName(this, providerClass))
+
+        if (ids.isEmpty()) {
+            Toast.makeText(
+                this,
+                "桌面上还没有「${slotTitles[slot]}」小部件，请先长按桌面添加后再设置",
+                Toast.LENGTH_LONG
+            ).show()
+            return
+        }
+
+        val intent = Intent(this, CountWidgetConfigActivity::class.java).apply {
+            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, ids[0])
+        }
+        startActivity(intent)
     }
 
     private fun applySort() {
