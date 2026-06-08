@@ -1,0 +1,1 @@
+start /b  pythonw  "D:\files\using\Web\PC_A_5005_screenshot_webserver\manage_screenshot_to_new_folder\manage_screenshots.py"
