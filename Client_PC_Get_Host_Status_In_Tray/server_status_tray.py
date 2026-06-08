@@ -183,7 +183,7 @@ def main():
          QColor(0, 120, 215)),    # 大图：蓝色
         (os.getenv("NAME_SMALL", "小图").strip(),
          (os.getenv("API_SMALL") or "").strip(),
-         QColor(0, 150, 90)),     # 小图：绿色
+         QColor(0, 120, 215)),    # 小图：蓝色
     ]
 
     icons = []
