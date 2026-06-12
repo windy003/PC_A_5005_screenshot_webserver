@@ -24,6 +24,11 @@ SCAN_INTERVAL_SECONDS = 5          # 每隔多少秒扫描一次源文件夹
 STABLE_WAIT_SECONDS = 1.0          # 判定文件“写入完成”需要大小连续不变的等待间隔
 STABLE_RETRIES = 3                 # 连续多少次大小不变才认为文件已写完
 TEMP_SUFFIX = ".part"              # 传输过程中目标端使用的临时后缀
+MIN_AGE_SECONDS = 60               # 新文件需在源文件夹中存在满多少秒才允许上传
+
+# 记录每个文件首次被发现的时间，用于计算“存在时长”
+# key: 文件绝对路径字符串, value: 首次发现的时间戳
+first_seen = {}
 
 
 def log(msg):
@@ -104,18 +109,43 @@ def transfer_file(file_path, target_dir):
 
 
 def scan_and_transfer(source_dir, target_dir):
-    """扫描源文件夹中的所有文件并逐个传送（子文件夹不处理）"""
+    """扫描源文件夹中的所有文件并逐个传送（子文件夹不处理）。
+    新发现的文件需存在满 MIN_AGE_SECONDS 后才会被传送。"""
     files = [f for f in source_dir.iterdir() if f.is_file()]
+
+    now = time.time()
+    current_paths = {str(f.resolve()) for f in files}
+
+    # 清理已消失文件的记录，避免字典无限增长
+    for path in list(first_seen):
+        if path not in current_paths:
+            del first_seen[path]
+
     if not files:
         return
 
-    log(f"发现 {len(files)} 个文件，准备传送到 {target_dir}")
+    ready = []
     for f in files:
+        key = str(f.resolve())
+        if key not in first_seen:
+            first_seen[key] = now
+            log(f"发现新文件，等待存在满 {MIN_AGE_SECONDS} 秒后传送: {f.name}")
+        age = now - first_seen[key]
+        if age >= MIN_AGE_SECONDS:
+            ready.append(f)
+
+    if not ready:
+        return
+
+    log(f"{len(ready)} 个文件已满 {MIN_AGE_SECONDS} 秒，准备传送到 {target_dir}")
+    for f in ready:
         # 跳过别的程序正在写入、尚未稳定的文件，留到下一轮再处理
         if not is_file_stable(f):
             log(f"  文件未就绪，稍后重试: {f.name}")
             continue
-        transfer_file(f, target_dir)
+        if transfer_file(f, target_dir):
+            # 传送成功后移除记录
+            first_seen.pop(str(f.resolve()), None)
 
 
 def main():

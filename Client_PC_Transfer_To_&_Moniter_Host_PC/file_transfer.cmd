@@ -1,1 +1,0 @@
-start /b pythonw "D:\files\using\Web\PC_A_5005_screenshot_webserver\Client_PC_Transfer_To_&_Moniter_Host_PC\file_transfer.py"
