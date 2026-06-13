@@ -184,8 +184,43 @@ class MainActivity : AppCompatActivity() {
     else
         "http://192.168.1.100:5005/large/browse/releasing"
 
+    // 标签页与站点强绑定：slot 0 -> small，slot 1 -> large
+    private fun siteForSlot(slot: Int) = slotTitles[slot]
+
+    /**
+     * 把地址里的站点段（第一个路径段）强制改为指定 site。
+     * 例如 http://IP:5005/large/browse/releasing + small
+     *   -> http://IP:5005/small/browse/releasing
+     * 这样无论用户在哪个标签里手输了什么 site，都会被纠正为该标签对应的站点，
+     * 避免 small 标签被存成 large 地址（反之亦然）。
+     */
+    private fun enforceSite(rawUrl: String, site: String): String {
+        val input = rawUrl.trim()
+        val schemeIdx = input.indexOf("://")
+        if (schemeIdx == -1) return input            // 非法地址，原样返回，交给后续校验
+        val afterScheme = input.substring(schemeIdx + 3)
+        val firstSlash = afterScheme.indexOf('/')
+        val origin = if (firstSlash == -1) input
+                     else input.substring(0, schemeIdx + 3 + firstSlash)
+        if (firstSlash == -1) return "$origin/$site"
+        val pathPart = afterScheme.substring(firstSlash + 1)
+        val segs = pathPart.split("/").filter { it.isNotEmpty() }.toMutableList()
+        if (segs.isEmpty()) return "$origin/$site"
+        segs[0] = site                               // 替换站点段
+        return "$origin/${segs.joinToString("/")}"
+    }
+
+    /** 读取当前输入框地址，按当前标签校正站点段后写回输入框，并返回校正后的地址。 */
+    private fun currentCorrectedUrl(): String {
+        val corrected = enforceSite(serverUrlInput.text.toString().trim(), siteForSlot(currentSlot))
+        serverUrlInput.setText(corrected)
+        return corrected
+    }
+
     private fun loadSlot(slot: Int) {
-        serverUrlInput.setText(sharedPreferences.getString(urlKey(slot), defaultUrlFor(slot)))
+        // 读出存储值后强制校正站点段，避免历史污染（如 small 标签存成了 large 地址）
+        val stored = sharedPreferences.getString(urlKey(slot), defaultUrlFor(slot)) ?: defaultUrlFor(slot)
+        serverUrlInput.setText(enforceSite(stored, siteForSlot(slot)))
         usernameInput.setText(sharedPreferences.getString(userKey(slot), "admin"))
         if (rememberPasswordCheckbox.isChecked) {
             passwordInput.setText(sharedPreferences.getString(passKey(slot), "admin123"))
@@ -196,7 +231,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun saveInputsToSlot(slot: Int) {
         val editor = sharedPreferences.edit()
-        editor.putString(urlKey(slot), serverUrlInput.text.toString())
+        editor.putString(urlKey(slot), enforceSite(serverUrlInput.text.toString(), siteForSlot(slot)))
         editor.putString(userKey(slot), usernameInput.text.toString())
         if (rememberPasswordCheckbox.isChecked) {
             editor.putString(passKey(slot), passwordInput.text.toString())
@@ -214,8 +249,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun saveCredentials() {
         val editor = sharedPreferences.edit()
-        // 保存当前标签页的配置
-        editor.putString(urlKey(currentSlot), serverUrlInput.text.toString())
+        // 保存当前标签页的配置（地址按当前标签强制校正站点段）
+        editor.putString(urlKey(currentSlot), enforceSite(serverUrlInput.text.toString(), siteForSlot(currentSlot)))
         editor.putString(userKey(currentSlot), usernameInput.text.toString())
         editor.putBoolean(KEY_REMEMBER_PASSWORD, rememberPasswordCheckbox.isChecked)
         editor.putBoolean(KEY_AUTO_LOGIN, autoLoginCheckbox.isChecked)
@@ -228,7 +263,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun autoLogin() {
-        val url = serverUrlInput.text.toString().trim()
+        val url = currentCorrectedUrl()
         val username = usernameInput.text.toString().trim()
         val password = passwordInput.text.toString().trim()
 
@@ -287,7 +322,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupListeners() {
         connectButton.setOnClickListener {
-            val url = serverUrlInput.text.toString().trim()
+            val url = currentCorrectedUrl()
             val username = usernameInput.text.toString().trim()
             val password = passwordInput.text.toString().trim()
 
